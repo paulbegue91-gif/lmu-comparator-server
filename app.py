@@ -1,6 +1,6 @@
 """
-LMU Lap Comparator — Backend Server v2
-Compatible avec le nouveau format de clé : circuit|config|car_class
+LMU Lap Comparator — Backend Server v3
+Données persistantes sur disque Render (/data/lmu_data.json)
 """
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -10,7 +10,8 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)
 
-DATA_FILE = "lmu_data.json"
+# Disque persistant Render monté sur /data
+DATA_FILE = "/data/lmu_data.json"
 
 def load_data():
     if os.path.exists(DATA_FILE):
@@ -21,6 +22,7 @@ def load_data():
     return {}
 
 def save_data(data):
+    os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
@@ -37,15 +39,12 @@ def push():
     times = body.get("times") or {}
     if not pilot: return jsonify({"error": "pilot required"}), 400
     if not times: return jsonify({"error": "times required"}), 400
-
     data = load_data()
     existing = data.get(pilot, {})
     existing_times = existing.get("times", {})
-
     for key, rec in times.items():
         if key not in existing_times or rec["time_sec"] < existing_times[key]["time_sec"]:
             existing_times[key] = rec
-
     data[pilot] = {"updated_at": datetime.now().strftime("%Y-%m-%d %H:%M"), "times": existing_times}
     save_data(data)
     return jsonify({"status": "ok", "pilot": pilot, "circuits_stored": len(existing_times)})
