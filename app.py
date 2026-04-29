@@ -1,6 +1,6 @@
 """
-LMU Lap Comparator — Backend Server v3
-Données persistantes sur disque Render (/data/lmu_data.json)
+LMU Lap Comparator — Backend Server v4
+Utilise /data si disque persistant disponible, sinon /tmp
 """
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -10,8 +10,12 @@ from datetime import datetime
 app = Flask(__name__)
 CORS(app)
 
-# Disque persistant Render monté sur /data
-DATA_FILE = "/data/lmu_data.json"
+if os.path.isdir('/data') and os.access('/data', os.W_OK):
+    DATA_FILE = "/data/lmu_data.json"
+else:
+    DATA_FILE = "/tmp/lmu_data.json"
+
+print(f"[INFO] Stockage : {DATA_FILE}")
 
 def load_data():
     if os.path.exists(DATA_FILE):
@@ -22,14 +26,13 @@ def load_data():
     return {}
 
 def save_data(data):
-    os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 @app.route("/", methods=["GET"])
 def index():
     data = load_data()
-    return jsonify({"status": "LMU Lap Comparator API", "pilots": list(data.keys()), "total_pilots": len(data)})
+    return jsonify({"status": "LMU Lap Comparator API", "pilots": list(data.keys()), "total_pilots": len(data), "storage": DATA_FILE})
 
 @app.route("/push", methods=["POST"])
 def push():
@@ -69,7 +72,7 @@ def delete_pilot(name):
 @app.route("/reset", methods=["GET"])
 def reset():
     save_data({})
-    return jsonify({"status": "reset", "message": "Toutes les données effacées"})
+    return jsonify({"status": "reset", "message": "Toutes les donnees effacees"})
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
